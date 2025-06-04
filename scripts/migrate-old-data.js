@@ -1,3 +1,4 @@
+const sqlite3 = require('sqlite3').verbose();
 // Script de migración (crear en scripts/migrate-old-data.js)
 const oldDb = new sqlite3.Database('./old-database.sqlite');
 const User = require('../src/models/User');

@@ -13,6 +13,7 @@ const errorMiddleware = require('./src/middleware/error.middleware');
 const authRoutes = require('./src/routes/auth.routes');
 const recognitionRoutes = require('./src/routes/recognition.routes');
 const userRoutes = require('./src/routes/user.routes');
+const faceConfigRoutes = require('./src/routes/face-config.routes');
 
 class FaceRecognitionServer {
     constructor() {
@@ -75,18 +76,15 @@ class FaceRecognitionServer {
         this.app.use('/api/auth', authRoutes);
         this.app.use('/api/recognition', recognitionRoutes);
         this.app.use('/api/users', userRoutes);
+        this.app.use('/api/face-config', faceConfigRoutes);
     }
 
     initializeErrorHandling() {
-        this.app.use(errorMiddleware);
+        // Usar el middleware de error modular
+        this.app.use(errorMiddleware.errorHandler);
         
         // 404 handler
-        this.app.use('*', (req, res) => {
-            res.status(404).json({
-                error: 'Endpoint no encontrado',
-                path: req.originalUrl
-            });
-        });
+        this.app.use('*', errorMiddleware.notFoundHandler);
     }
 
     async start() {
