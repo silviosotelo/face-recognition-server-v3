@@ -1,0 +1,73 @@
+# ============================================================
+# Face Recognition Server v4.0 - Dockerfile con GPU/CUDA
+#
+# Base: CUDA 11.8 + cuDNN 8 + Ubuntu 22.04
+# Node.js: 20 LTS (LTS recomendado para @tensorflow/tfjs-node-gpu)
+#
+# Build:
+#   docker build -f Dockerfile.gpu -t face-recognition:gpu .
+#
+# Run (con GPU):
+#   docker run --gpus all -p 4350:4350 face-recognition:gpu
+# ============================================================
+
+# Base con CUDA para @tensorflow/tfjs-node-gpu
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+# Instalar Node.js 20 LTS
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest
+
+# Dependencias del sistema para canvas y sharp
+RUN apt-get install -y \
+    build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    libpixman-1-dev \
+    libvips-dev \
+    python3 \
+    pkg-config \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Variables de entorno CUDA para TensorFlow
+ENV CUDA_HOME=/usr/local/cuda
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+ENV TF_CPP_MIN_LOG_LEVEL=2
+
+WORKDIR /app
+
+# Copiar package files primero (mejor cache de capas)
+COPY package*.json ./
+
+# Instalar dependencias Node.js
+# @tensorflow/tfjs-node-gpu descargará libtensorflow con soporte CUDA
+RUN npm ci --omit=dev
+
+# Copiar código fuente
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p data logs public/uploads
+
+# Usuario no-root por seguridad
+RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser \
+    && chown -R nodeuser:nodeuser /app
+USER nodeuser
+
+EXPOSE 4350
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -f http://localhost:4350/health || exit 1
+
+CMD ["node", "app.js"]

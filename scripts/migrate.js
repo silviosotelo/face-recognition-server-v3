@@ -1,38 +1,82 @@
-const db = require('../src/config/database');
+/**
+ * Script de migración de schema — PostgreSQL
+ *
+ * Agrega columnas faltantes a instalaciones existentes.
+ * Seguro de ejecutar múltiples veces: usa IF NOT EXISTS / manejo de errores.
+ *
+ * Uso:
+ *   node scripts/migrate.js
+ *   npm run migrate
+ */
+
+require('dotenv').config();
+const db     = require('../src/config/database');
 const logger = require('../src/utils/logger');
 
 async function migrate() {
     try {
-        logger.info('🔄 Iniciando migración de base de datos...');
-        
+        logger.info('🔄 Iniciando migración de schema PostgreSQL...');
+
         await db.initialize();
-        
-        // Agregar nuevas columnas si no existen
+
+        /**
+         * Cada migración es idempotente:
+         * - ALTER TABLE ... ADD COLUMN IF NOT EXISTS  (PG ≥ 9.6)
+         * - CREATE INDEX IF NOT EXISTS
+         * El bloque catch ignora errores de "ya existe".
+         */
         const migrations = [
-            `ALTER TABLE users ADD COLUMN face_encoding_version TEXT DEFAULT '2.0'`,
-            `ALTER TABLE users ADD COLUMN last_recognition_at DATETIME`,
-            `ALTER TABLE users ADD COLUMN recognition_count INTEGER DEFAULT 0`,
-            `CREATE INDEX IF NOT EXISTS idx_recognition_logs_created_at ON recognition_logs(created_at)`,
-            `CREATE INDEX IF NOT EXISTS idx_users_last_recognition ON users(last_recognition_at)`
+            // Columnas opcionales añadidas en v4.0
+            `ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS face_encoding_version TEXT DEFAULT '4.0'`,
+
+            `ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS last_recognition_at TIMESTAMPTZ`,
+
+            `ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS recognition_count INTEGER DEFAULT 0`,
+
+            // Índices adicionales para performance
+            `CREATE INDEX IF NOT EXISTS idx_users_last_recognition
+                ON users(last_recognition_at)
+                WHERE last_recognition_at IS NOT NULL`,
+
+            `CREATE INDEX IF NOT EXISTS idx_logs_success
+                ON recognition_logs(success, created_at DESC)`,
+
+            // Índice para consultas de logs recientes por IP (análisis de intentos)
+            `CREATE INDEX IF NOT EXISTS idx_logs_ip_created
+                ON recognition_logs(ip_address, created_at DESC)`
         ];
 
-        for (const migration of migrations) {
+        let applied = 0;
+        let skipped = 0;
+
+        for (const sql of migrations) {
             try {
-                await db.run(migration);
-                logger.info(`✅ Migración ejecutada: ${migration.substring(0, 50)}...`);
+                await db.run(sql);
+                logger.info(`  ✅ ${sql.trim().split('\n')[0].substring(0, 70)}`);
+                applied++;
             } catch (error) {
-                if (!error.message.includes('duplicate column name') && 
-                    !error.message.includes('already exists')) {
-                    logger.warn(`⚠️ Error en migración (ignorado): ${error.message}`);
+                // PG lanza error con código 42701 (columna ya existe) o 42P07 (relación ya existe)
+                // Ambos son ignorables en migraciones idempotentes
+                if (['42701', '42P07', '42710'].includes(error.code)) {
+                    logger.debug(`  ⏩ Ya existe, ignorado: ${error.message}`);
+                    skipped++;
+                } else {
+                    logger.warn(`  ⚠️ Error inesperado (ignorado): ${error.message}`);
+                    skipped++;
                 }
             }
         }
-        
-        logger.info('✅ Migración completada exitosamente');
+
+        logger.info(`✅ Migración completada: ${applied} aplicadas, ${skipped} omitidas`);
+
+        await db.close();
         process.exit(0);
-        
+
     } catch (error) {
-        logger.error('❌ Error en migración:', error);
+        logger.error('❌ Error crítico en migración:', error);
         process.exit(1);
     }
 }

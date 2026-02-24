@@ -1,13 +1,15 @@
 {
     "name": "face-recognition-backend-v3",
-    "version": "3.0.0",
-    "description": "Sistema de reconocimiento facial optimizado de clase empresarial",
+    "version": "4.1.0",
+    "description": "Sistema de reconocimiento facial - GPU/CUDA + HNSW + Redis + PostgreSQL - Escala 1M+ caras",
     "main": "app.js",
     "engines": {
-        "node": ">=16.0.0"
+        "node": ">=18.0.0"
     },
     "scripts": {
         "start": "node app.js",
+        "start:cluster": "pm2 start ecosystem.config.js",
+        "start:gpu": "TF_FORCE_GPU_ALLOW_GROWTH=true node app.js",
         "dev": "nodemon app.js",
         "test": "jest",
         "test:watch": "jest --watch",
@@ -15,13 +17,21 @@
         "lint": "eslint src/",
         "lint:fix": "eslint src/ --fix",
         "migrate": "node scripts/migrate.js",
-        "seed": "node scripts/seed.js"
+        "seed": "node scripts/seed.js",
+        "migrate:from-sqlite": "node scripts/migrate-sqlite-to-postgres.js",
+        "build:index": "node scripts/build-hnsw-index.js",
+        "check:gpu": "node scripts/gpu-check.js",
+        "pm2:start": "pm2 start ecosystem.config.js",
+        "pm2:stop": "pm2 stop face-recognition",
+        "pm2:reload": "pm2 reload face-recognition",
+        "pm2:logs": "pm2 logs face-recognition",
+        "pm2:monit": "pm2 monit"
     },
     "dependencies": {
         "express": "^4.18.2",
         "face-api.js": "^0.22.2",
         "canvas": "^2.11.2",
-        "sqlite3": "^5.1.6",
+        "pg": "^8.11.3",
         "sharp": "^0.32.6",
         "cors": "^2.8.5",
         "helmet": "^7.1.0",
@@ -31,14 +41,22 @@
         "winston": "^3.11.0",
         "node-cache": "^5.1.2",
         "dotenv": "^16.3.1",
-        "validator": "^13.11.0"
+        "validator": "^13.11.0",
+        "@tensorflow/tfjs-node-gpu": "^4.17.0",
+        "hnswlib-node": "^3.0.0",
+        "ioredis": "^5.3.2",
+        "prom-client": "^15.1.0",
+        "bull": "^4.12.2",
+        "uuid": "^9.0.1"
     },
     "devDependencies": {
         "nodemon": "^3.0.1",
         "jest": "^29.7.0",
         "supertest": "^6.3.3",
         "eslint": "^8.53.0",
-        "@types/node": "^20.8.10"
+        "@types/node": "^20.8.10",
+        "pm2": "^5.3.1",
+        "sqlite3": "^5.1.6"
     },
     "keywords": [
         "reconocimiento-facial",
@@ -46,7 +64,13 @@
         "ai",
         "computer-vision",
         "biometrics",
-        "security"
+        "security",
+        "gpu",
+        "cuda",
+        "tensorflow",
+        "hnsw",
+        "redis",
+        "postgresql"
     ],
     "author": "Silvio Sotelo",
     "license": "MIT"
