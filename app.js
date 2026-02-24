@@ -123,6 +123,7 @@ class FaceRecognitionServer {
                     },
                     hnsw: hnswService.getStats(),
                     cache: cacheService.getStats(),
+                    database: require('./src/config/database').getPoolStats(),
                     users: {
                         active: await User.count({ active_only: true })
                     }

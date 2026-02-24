@@ -1,7 +1,7 @@
 {
     "name": "face-recognition-backend-v3",
-    "version": "4.0.0",
-    "description": "Sistema de reconocimiento facial optimizado con GPU/CUDA, HNSW y Redis - Escala 1M+ caras",
+    "version": "4.1.0",
+    "description": "Sistema de reconocimiento facial - GPU/CUDA + HNSW + Redis + PostgreSQL - Escala 1M+ caras",
     "main": "app.js",
     "engines": {
         "node": ">=18.0.0"
@@ -18,6 +18,7 @@
         "lint:fix": "eslint src/ --fix",
         "migrate": "node scripts/migrate.js",
         "seed": "node scripts/seed.js",
+        "migrate:from-sqlite": "node scripts/migrate-sqlite-to-postgres.js",
         "build:index": "node scripts/build-hnsw-index.js",
         "check:gpu": "node scripts/gpu-check.js",
         "pm2:start": "pm2 start ecosystem.config.js",
@@ -30,7 +31,7 @@
         "express": "^4.18.2",
         "face-api.js": "^0.22.2",
         "canvas": "^2.11.2",
-        "sqlite3": "^5.1.6",
+        "pg": "^8.11.3",
         "sharp": "^0.32.6",
         "cors": "^2.8.5",
         "helmet": "^7.1.0",
@@ -54,7 +55,8 @@
         "supertest": "^6.3.3",
         "eslint": "^8.53.0",
         "@types/node": "^20.8.10",
-        "pm2": "^5.3.1"
+        "pm2": "^5.3.1",
+        "sqlite3": "^5.1.6"
     },
     "keywords": [
         "reconocimiento-facial",
@@ -67,7 +69,8 @@
         "cuda",
         "tensorflow",
         "hnsw",
-        "redis"
+        "redis",
+        "postgresql"
     ],
     "author": "Silvio Sotelo",
     "license": "MIT"
