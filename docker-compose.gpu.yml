@@ -1,0 +1,197 @@
+###############################################################
+# Face Recognition Server v4.0 - Docker Compose con GPU
+#
+# Requisitos:
+#   - NVIDIA Docker runtime: nvidia-container-toolkit
+#   - CUDA 11.x o 12.x
+#   - cuDNN 8.x
+#
+# Verificar NVIDIA runtime:
+#   docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu22.04 nvidia-smi
+#
+# Iniciar:
+#   docker compose -f docker-compose.gpu.yml up -d
+#
+# Ver logs:
+#   docker compose -f docker-compose.gpu.yml logs -f face-recognition
+###############################################################
+
+version: '3.8'
+
+services:
+
+  # ── Face Recognition API ─────────────────────────────────────
+  face-recognition:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    container_name: face-recognition-api
+    restart: unless-stopped
+
+    # Acceso a GPU NVIDIA
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1          # Usar 1 GPU (all = todas)
+              capabilities: [gpu]
+
+    environment:
+      - NODE_ENV=production
+      - PORT=4350
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - UV_THREADPOOL_SIZE=16
+      - REDIS_URL=redis://redis:6379
+      - DB_PATH=/app/data/database.sqlite
+      - HNSW_INDEX_PATH=/app/data/hnsw.index
+      - HNSW_META_PATH=/app/data/hnsw.meta.json
+      - MODELS_PATH=/app/public/models
+      - LOG_LEVEL=info
+    env_file:
+      - .env
+
+    volumes:
+      - ./data:/app/data                    # Base de datos + índice HNSW
+      - ./public/models:/app/public/models  # Modelos ML (read-only)
+      - ./public/uploads:/app/public/uploads
+      - ./logs:/app/logs
+
+    ports:
+      - "4350:4350"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4350/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s   # TF+GPU necesita tiempo para inicializar
+
+    networks:
+      - face-net
+
+    # Límites de recursos
+    mem_limit: 8g
+    memswap_limit: 8g
+    shm_size: 1g          # Shared memory para GPU/CUDA operations
+
+  # ── Redis Cache ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: face-recognition-redis
+    restart: unless-stopped
+
+    command: >
+      redis-server
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --appendonly no
+      --save ""
+      --loglevel warning
+
+    volumes:
+      - redis-data:/data
+
+    ports:
+      - "6379:6379"
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - face-net
+
+    mem_limit: 2g
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: face-recognition-nginx
+    restart: unless-stopped
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro     # Certificados SSL (opcional)
+      - ./logs/nginx:/var/log/nginx
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    depends_on:
+      - face-recognition
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    networks:
+      - face-net
+
+  # ── Prometheus (Métricas) ─────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: face-recognition-prometheus
+    restart: unless-stopped
+
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+    ports:
+      - "9090:9090"
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+
+    networks:
+      - face-net
+
+  # ── Grafana (Dashboards) ──────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: face-recognition-grafana
+    restart: unless-stopped
+
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+
+    ports:
+      - "3001:3000"
+
+    depends_on:
+      - prometheus
+
+    networks:
+      - face-net
+
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  face-net:
+    driver: bridge

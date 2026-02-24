@@ -1,0 +1,25 @@
+# Prometheus Configuration - Face Recognition Server v4.0
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+  external_labels:
+    service: 'face-recognition-server'
+    environment: 'production'
+
+scrape_configs:
+  # Métricas del Face Recognition Server
+  - job_name: 'face-recognition'
+    static_configs:
+      - targets: ['face-recognition:4350']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Métricas de Prometheus mismo
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Métricas de Node.js via prom-client
+  # (incluidas automáticamente en /metrics)
