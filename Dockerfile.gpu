@@ -59,9 +59,12 @@ COPY . .
 # Crear directorios necesarios
 RUN mkdir -p data logs public/models public/uploads
 
-# Descargar modelos de face-api durante el build (quedan en la imagen)
-# Esto evita descargas en cada arranque del contenedor
+# Descargar modelos en el build (cache warm — si el volumen los sobreescribe,
+# el entrypoint.sh los descargará de nuevo en tiempo de ejecución)
 RUN node scripts/download-models.js
+
+# Dar permisos de ejecución al entrypoint
+RUN chmod +x scripts/entrypoint.sh
 
 # Usuario no-root por seguridad
 RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser \
@@ -70,8 +73,9 @@ USER nodeuser
 
 EXPOSE 4350
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+# Healthcheck — start_period extendido para dar tiempo a que los modelos carguen
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
     CMD curl -f http://localhost:4350/health || exit 1
 
-CMD ["node", "app.js"]
+# El entrypoint verifica modelos y hace exec node app.js
+CMD ["/bin/bash", "/app/scripts/entrypoint.sh"]

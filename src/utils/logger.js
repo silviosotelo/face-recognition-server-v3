@@ -34,7 +34,21 @@ const logger = winston.createLogger({
     ]
 });
 
-// En desarrollo, también loggear a consola
+// Siempre loggear errores a stderr para que sean visibles en `docker logs`
+// (en producción los logs van a archivo; sin esto, los crashes son silenciosos)
+logger.add(new winston.transports.Console({
+    level: 'error',
+    stderrLevels: ['error'],
+    format: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }),
+        winston.format.printf(({ timestamp, level, message, stack }) =>
+            `${timestamp} [${level.toUpperCase()}] ${stack || message}`
+        )
+    )
+}));
+
+// En desarrollo, loggear todo a consola con colores
 if (config.NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({
         format: winston.format.combine(
