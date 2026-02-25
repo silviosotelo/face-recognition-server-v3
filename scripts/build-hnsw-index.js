@@ -71,8 +71,18 @@ async function buildIndex() {
         const hnswService = require('../src/services/hnsw.service');
         await hnswService.initialize(); // Inicializar para crear índice vacío
 
+        // Pasar solo usuarios con descriptores válidos
+        const validUsersToIndex = users.filter(user => {
+            try {
+                const desc = JSON.parse(user.descriptor);
+                return Array.isArray(desc) && desc.length === 128;
+            } catch {
+                return false;
+            }
+        });
+
         const startTime = Date.now();
-        const result = await hnswService.rebuildIndex(users);
+        const result = await hnswService.rebuildIndex(validUsersToIndex);
         const elapsed = Date.now() - startTime;
 
         // Guardar índice en disco

@@ -87,7 +87,7 @@ class HNSWService {
     async loadIndex() {
         try {
             this.index = new HierarchicalNSW('l2', DESCRIPTOR_DIM);
-            this.index.readIndex(this.indexPath, MAX_ELEMENTS);
+            await this.index.readIndex(this.indexPath, false);
             this.index.setEf(HNSW_EF_SEARCH);
 
             // Cargar metadatos (mapeo id -> label)
@@ -146,7 +146,7 @@ class HNSWService {
         }
 
         const label = this.nextLabel++;
-        const vector = new Float32Array(descriptor);
+        const vector = descriptor instanceof Float32Array ? Array.from(descriptor) : descriptor;
 
         this.index.addPoint(vector, label);
         this.idMap.set(label, { userId, ...userMeta });
@@ -171,7 +171,7 @@ class HNSWService {
         }
 
         const label = this.reverseIdMap.get(userId);
-        const vector = new Float32Array(descriptor);
+        const vector = descriptor instanceof Float32Array ? Array.from(descriptor) : descriptor;
 
         // HNSW no soporta update directo - marcar como eliminado y agregar nuevo
         this.index.markDelete(label);
@@ -217,7 +217,7 @@ class HNSWService {
         const startTime = Date.now();
 
         try {
-            const vector = new Float32Array(queryDescriptor);
+            const vector = queryDescriptor instanceof Float32Array ? Array.from(queryDescriptor) : queryDescriptor;
             const numNeighbors = Math.min(k, this.stats.totalVectors);
 
             const { neighbors, distances } = this.index.searchKnn(vector, numNeighbors);
@@ -281,7 +281,7 @@ class HNSWService {
                 );
                 added++;
             } catch (error) {
-                logger.warn(`Error agregando usuario ${user.id} al índice:`, error.message);
+                logger.error(`Error agregando usuario ${user.id} al índice: ${error.message}`);
                 errors++;
             }
         }
