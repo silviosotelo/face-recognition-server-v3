@@ -11,10 +11,10 @@
  */
 
 // ===== INICIALIZACIÓN GPU =====
-// @tensorflow/tfjs-node-gpu debe cargarse ANTES que @vladmandic/face-api.
-// Ambos paquetes dependen de @tensorflow/tfjs@^4.x — sin conflicto de versiones.
-// NO cargar @tensorflow/tfjs-node (CPU) como fallback: causaría doble registro
-// del backend CPU ("cpu backend was already registered") y del platform Node.
+// Cargar @tensorflow/tfjs-node-gpu PRIMERO para activar CUDA.
+// Si GPU falla, cargar @tensorflow/tfjs-node (CPU) como fallback exclusivo.
+// NUNCA cargar ambos simultáneamente — ambos registran el backend 'tensorflow'
+// con los mismos kernel names, causando cientos de warnings de registro duplicado.
 let tf = null;
 let tfBackend = 'default';
 
@@ -23,8 +23,15 @@ try {
     tfBackend = 'gpu';
     console.log('[TF] GPU backend (CUDA) cargado correctamente');
 } catch (gpuError) {
-    // GPU no disponible — @vladmandic/face-api usará su backend CPU integrado
-    console.warn('[TF] GPU no disponible, usando backend por defecto:', gpuError.message);
+    console.warn('[TF] GPU no disponible, intentando CPU Node.js:', gpuError.message);
+    try {
+        tf = require('@tensorflow/tfjs-node');
+        tfBackend = 'cpu';
+        console.log('[TF] CPU backend (Node.js nativo) cargado como fallback');
+    } catch (cpuError) {
+        console.warn('[TF] tfjs-node no disponible, usando backend por defecto de face-api');
+        tfBackend = 'default';
+    }
 }
 
 const faceapi = require('@vladmandic/face-api');

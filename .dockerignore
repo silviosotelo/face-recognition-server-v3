@@ -1,0 +1,41 @@
+# Dependencias — NUNCA copiar al contenedor.
+# npm ci las instala dentro del build con el Node.js correcto del contenedor.
+# Sin este archivo, COPY . . sobreescribe los módulos nativos compilados para
+# el Node.js del contenedor con los del host (versión distinta → ERR_DLOPEN_FAILED).
+node_modules
+npm-debug.log*
+yarn-error.log
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Datos en tiempo de ejecución (se montan como volúmenes)
+data/
+logs/
+public/uploads/
+
+# Entorno local
+.env
+.env.*
+!.env.example
+
+# Herramientas de desarrollo
+.eslintrc*
+.prettierrc*
+*.test.js
+*.spec.js
+jest.config.*
+coverage/
+
+# Editor / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
