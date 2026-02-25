@@ -18,7 +18,7 @@
         "lint:fix": "eslint src/ --fix",
         "migrate": "node scripts/migrate.js",
         "seed": "node scripts/seed.js",
-        "migrate:from-sqlite": "node scripts/migrate-sqlite-to-postgres.js --sqlite-path ./data/database.sqlite",
+        "migrate:from-sqlite": "node scripts/migrate-sqlite-to-postgres.js",
         "build:index": "node scripts/build-hnsw-index.js",
         "check:gpu": "node scripts/gpu-check.js",
         "pm2:start": "pm2 start ecosystem.config.js",
