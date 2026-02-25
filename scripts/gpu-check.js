@@ -3,8 +3,8 @@
  * Script de verificación GPU para Face Recognition Server
  *
  * Uso:
- *   node scripts/gpu-check.js
- *   npm run check:gpu
+ * node scripts/gpu-check.js
+ * npm run check:gpu
  *
  * Verifica:
  * - NVIDIA GPU detectada por nvidia-smi
