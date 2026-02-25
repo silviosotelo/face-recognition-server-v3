@@ -105,6 +105,9 @@ services:
       - HNSW_META_PATH=/app/data/hnsw.meta.json
       - MODELS_PATH=/app/public/models
       - LOG_LEVEL=info
+      # Ruta al SQLite legado dentro del contenedor (mapeado desde ./data/database.sqlite en el host)
+      # Si el archivo existe y PostgreSQL está vacío, se importa automáticamente al arrancar.
+      - SQLITE_PATH=/app/data/database.sqlite
     env_file:
       - .env
 
@@ -127,7 +130,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      # start_period extendido: cubre descarga de modelos + importación SQLite + construcción HNSW
+      start_period: 300s
 
     networks:
       - face-net

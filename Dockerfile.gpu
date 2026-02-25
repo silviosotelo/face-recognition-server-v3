@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && npm install -g npm@latest
 
-# Dependencias del sistema para canvas y sharp
+# Dependencias del sistema para canvas, sharp y gosu (drop de privilegios en entrypoint)
 RUN apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -35,6 +35,7 @@ RUN apt-get install -y \
     libvips-dev \
     python3 \
     pkg-config \
+    gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -66,15 +67,16 @@ RUN node scripts/download-models.js
 # Dar permisos de ejecución al entrypoint
 RUN chmod +x scripts/entrypoint.sh
 
-# Usuario no-root por seguridad
+# Crear usuario no-root para el servidor (el drop de privilegios lo hace gosu en entrypoint.sh)
 RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser \
     && chown -R nodeuser:nodeuser /app
-USER nodeuser
+# No se hace USER nodeuser aquí — el entrypoint arranca como root para arreglar
+# permisos de volúmenes bind-mounted y luego hace exec gosu nodeuser node app.js
 
 EXPOSE 4350
 
 # Healthcheck — start_period extendido para dar tiempo a que los modelos carguen
-HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=5 \
     CMD curl -f http://localhost:4350/health || exit 1
 
 # El entrypoint verifica modelos y hace exec node app.js
