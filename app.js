@@ -102,13 +102,17 @@ class FaceRecognitionServer {
 
                 let gpuInfo = { available: false };
                 try {
-                    const tf = require('@tensorflow/tfjs-node-gpu');
-                    gpuInfo = {
-                        available: true,
-                        backend: tf.getBackend(),
-                        memory: tf.memory()
-                    };
-                } catch {}
+                    const tf = faceRecognitionConfig.tf;
+                    if (tf) {
+                        gpuInfo = {
+                            available: true,
+                            backend: tf.getBackend(),
+                            memory: tf.memory()
+                        };
+                    }
+                } catch (e) {
+                    logger.debug('GPU info no disponible:', e.message);
+                }
 
                 res.status(200).json({
                     status: 'OK',

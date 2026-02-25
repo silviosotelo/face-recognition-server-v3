@@ -57,7 +57,11 @@ RUN npm ci --omit=dev
 COPY . .
 
 # Crear directorios necesarios
-RUN mkdir -p data logs public/uploads
+RUN mkdir -p data logs public/models public/uploads
+
+# Descargar modelos de face-api durante el build (quedan en la imagen)
+# Esto evita descargas en cada arranque del contenedor
+RUN node scripts/download-models.js
 
 # Usuario no-root por seguridad
 RUN groupadd -r nodeuser && useradd -r -g nodeuser nodeuser \

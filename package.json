@@ -29,7 +29,7 @@
     },
     "dependencies": {
         "express": "^4.18.2",
-        "face-api.js": "^0.22.2",
+        "@vladmandic/face-api": "^2.4.0",
         "canvas": "^2.11.2",
         "pg": "^8.11.3",
         "sharp": "^0.32.6",

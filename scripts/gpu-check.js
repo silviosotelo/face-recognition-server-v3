@@ -134,14 +134,15 @@ async function main() {
         }
     }
 
-    // ── 5. Verificar face-api.js ─────────────────────────────────
-    console.log('\n📌 5. face-api.js\n');
+    // ── 5. Verificar @vladmandic/face-api ────────────────────────
+    console.log('\n📌 5. @vladmandic/face-api\n');
     try {
-        const faceapi = require('face-api.js');
-        console.log(`   ✅ face-api.js disponible`);
-        console.log(`   Backend configurado: ${require('@tensorflow/tfjs-node-gpu').getBackend()}`);
+        const faceapi = require('@vladmandic/face-api');
+        console.log(`   ✅ @vladmandic/face-api disponible`);
+        const tf = require('@tensorflow/tfjs-node-gpu');
+        console.log(`   Backend configurado: ${tf.getBackend()}`);
     } catch (err) {
-        console.log('   ❌ face-api.js no disponible:', err.message);
+        console.log('   ❌ @vladmandic/face-api no disponible:', err.message);
     }
 
     // ── 6. Verificar HNSW ────────────────────────────────────────
