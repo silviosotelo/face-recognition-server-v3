@@ -73,5 +73,12 @@
         "postgresql"
     ],
     "author": "Silvio Sotelo",
-    "license": "MIT"
+    "license": "MIT",
+    "overrides": {
+        "@tensorflow/tfjs": "4.17.0",
+        "@tensorflow/tfjs-core": "4.17.0",
+        "@tensorflow/tfjs-backend-cpu": "4.17.0",
+        "@tensorflow/tfjs-backend-webgl": "4.17.0",
+        "@tensorflow/tfjs-converter": "4.17.0"
+    }
 }
