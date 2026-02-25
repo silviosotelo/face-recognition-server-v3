@@ -210,7 +210,13 @@ class MetricsService {
      */
     async updateGpuMetrics() {
         try {
-            const tf = require('@tensorflow/tfjs-node-gpu');
+            // Reutilizar la instancia de TF ya cargada por face-recognition config
+            // (evita un require() separado que causaría conflicto de backends)
+            const tf = require('../config/face-recognition').tf;
+            if (!tf) {
+                this.tensorflowBackend.set(0);
+                return;
+            }
             const backend = tf.getBackend();
             const isGpu = backend === 'tensorflow' || backend === 'cuda';
             this.tensorflowBackend.set(isGpu ? 1 : 0);
@@ -219,8 +225,7 @@ class MetricsService {
                 const memInfo = tf.memory();
                 this.gpuMemoryUsed.set(memInfo.numBytesInGPU || 0);
             }
-        } catch {
-            // GPU metrics no disponibles si el módulo no está cargado
+        } catch (e) {
             this.tensorflowBackend.set(0);
         }
     }

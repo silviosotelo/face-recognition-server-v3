@@ -11,24 +11,23 @@
  */
 
 // ===== INICIALIZACIÓN GPU =====
-// Debe ser el PRIMER import de TensorFlow en toda la aplicación
-let tfBackend = 'cpu';
+// @tensorflow/tfjs-node-gpu debe cargarse ANTES que @vladmandic/face-api.
+// Ambos paquetes dependen de @tensorflow/tfjs@^4.x — sin conflicto de versiones.
+// NO cargar @tensorflow/tfjs-node (CPU) como fallback: causaría doble registro
+// del backend CPU ("cpu backend was already registered") y del platform Node.
+let tf = null;
+let tfBackend = 'default';
+
 try {
-    // Intentar usar GPU (CUDA) primero
-    require('@tensorflow/tfjs-node-gpu');
+    tf = require('@tensorflow/tfjs-node-gpu');
     tfBackend = 'gpu';
+    console.log('[TF] GPU backend (CUDA) cargado correctamente');
 } catch (gpuError) {
-    // Fallback a CPU si CUDA no está disponible o falla
-    try {
-        require('@tensorflow/tfjs-node');
-        tfBackend = 'cpu';
-    } catch (cpuError) {
-        // face-api.js usará su propio backend por defecto
-        tfBackend = 'default';
-    }
+    // GPU no disponible — @vladmandic/face-api usará su backend CPU integrado
+    console.warn('[TF] GPU no disponible, usando backend por defecto:', gpuError.message);
 }
 
-const faceapi = require('face-api.js');
+const faceapi = require('@vladmandic/face-api');
 const { Canvas, Image, ImageData } = require('canvas');
 const path = require('path');
 const fs = require('fs');
@@ -425,4 +424,6 @@ class FaceRecognitionConfig {
     }
 }
 
-module.exports = new FaceRecognitionConfig();
+const instance = new FaceRecognitionConfig();
+instance.tf = tf;          // expuesto para app.js y metrics.service (evita múltiples require)
+module.exports = instance;
