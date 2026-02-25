@@ -107,8 +107,6 @@ async function main() {
         const a = tf.tensor2d([[1, 2], [3, 4]]);
         const b = tf.tensor2d([[5, 6], [7, 8]]);
         const c = tf.matMul(a, b);
-
-        // AHORA ESTE AWAIT FUNCIONA PORQUE ESTAMOS DENTRO DE UNA FUNCIÓN ASÍNCRONA
         const result = await c.data();
         const elapsed = Date.now() - startTime;
 
@@ -178,7 +176,6 @@ async function main() {
             lazyConnect: true
         });
 
-        // ESTOS AWAIT TAMBIÉN DARÍAN ERROR, PERO AHORA ESTÁN PROTEGIDOS
         await redis.connect();
         await redis.ping();
         const info = await redis.info('server');
@@ -195,14 +192,12 @@ async function main() {
     console.log('\n' + '='.repeat(60));
     console.log('Verificación completada. Revisa los items ❌ arriba para configurar.');
     console.log('\nPara iniciar el servidor:');
-    console.log('  node app.js            # Modo single process');
-    console.log('  npm run start:cluster  # PM2 cluster mode');
+    console.log('  node app.js           # Modo single process');
+    console.log('  npm run start:cluster # PM2 cluster mode');
     console.log('');
-    process.exit(0);
 }
 
-// Ejecutamos la función asíncrona principal
 main().catch(err => {
-    console.error("Ocurrió un error inesperado al ejecutar el script:", err);
+    console.error('\n❌ Error inesperado en la verificación:', err.message);
     process.exit(1);
 });
