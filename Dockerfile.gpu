@@ -51,7 +51,7 @@ COPY package*.json ./
 
 # Instalar dependencias Node.js
 # @tensorflow/tfjs-node-gpu descargará libtensorflow con soporte CUDA
-RUN npm ci --omit=dev
+RUN npm install --production
 
 # Copiar código fuente
 COPY . .

@@ -10,7 +10,7 @@
  * - Mejor alineación de rostros via landmarks
  */
 
-const faceapi = require('face-api.js');
+const faceapi = require('@vladmandic/face-api');
 const { Canvas, Image } = require('canvas');
 const sharp = require('sharp');
 const crypto = require('crypto');

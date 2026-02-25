@@ -1,0 +1,10 @@
+node_modules/
+dist/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+package-lock.json
+node_modules/*
+data/hnsw.index
+data/hnsw.meta.json
