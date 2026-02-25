@@ -37,7 +37,18 @@ try {
 
 const { Pool } = require('pg');
 
-const SQLITE_PATH  = process.env.SQLITE_PATH || path.resolve('./database.sqlite');
+// Ruta al archivo SQLite:
+//   1. Argumento CLI:      node migrate-sqlite-to-postgres.js --sqlite-path /ruta/db.sqlite
+//   2. Variable de entorno: SQLITE_PATH=/ruta/db.sqlite
+//   3. Default:            ./data/database.sqlite  (coincide con el volumen Docker ./data)
+const _sqliteArgIdx = process.argv.indexOf('--sqlite-path');
+const SQLITE_PATH = (
+    (_sqliteArgIdx !== -1 && process.argv[_sqliteArgIdx + 1])
+        ? path.resolve(process.argv[_sqliteArgIdx + 1])
+        : process.env.SQLITE_PATH
+            ? path.resolve(process.env.SQLITE_PATH)
+            : path.resolve('./data/database.sqlite')
+);
 const BATCH_USERS  = 500;
 const BATCH_LOGS   = 1000;
 
