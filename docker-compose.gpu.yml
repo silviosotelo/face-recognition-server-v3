@@ -110,7 +110,6 @@ services:
 
     volumes:
       - ./data:/app/data
-      - ./public/models:/app/public/models
       - ./public/uploads:/app/public/uploads
       - ./logs:/app/logs
 
@@ -127,8 +126,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:4350/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 90s
+      retries: 5
+      start_period: 120s
 
     networks:
       - face-net
