@@ -73,7 +73,7 @@ class HNSWService {
     async createIndex() {
         this.index = new HierarchicalNSW('l2', DESCRIPTOR_DIM);
         this.index.initIndex(MAX_ELEMENTS, HNSW_M, HNSW_EF_CONSTRUCTION);
-        this.index.setEfSearch(HNSW_EF_SEARCH);
+        this.index.setEf(HNSW_EF_SEARCH);
         this.idMap.clear();
         this.reverseIdMap.clear();
         this.nextLabel = 0;
@@ -88,7 +88,7 @@ class HNSWService {
         try {
             this.index = new HierarchicalNSW('l2', DESCRIPTOR_DIM);
             this.index.readIndex(this.indexPath, MAX_ELEMENTS);
-            this.index.setEfSearch(HNSW_EF_SEARCH);
+            this.index.setEf(HNSW_EF_SEARCH);
 
             // Cargar metadatos (mapeo id -> label)
             const meta = JSON.parse(fs.readFileSync(this.metaPath, 'utf-8'));
