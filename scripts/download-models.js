@@ -1,160 +1,121 @@
 #!/usr/bin/env node
+
 /**
- * Descarga los modelos de face-api.js desde el repositorio de vladmandic/face-api.
- * Los modelos son binarios compatibles con @vladmandic/face-api y face-api.js.
- *
- * Uso:
- *   node scripts/download-models.js
- *   node scripts/download-models.js --dest /app/public/models
- *
- * Ejecutado automáticamente durante el build de Docker (Dockerfile.gpu).
+ * Descarga dinámicamente los modelos de face-api.js desde el repo de vladmandic.
+ * 1. Consulta la lista de archivos vía GitHub API.
+ * 2. Descarga cada archivo a la carpeta de destino.
  */
 
 const https = require('https');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'https://raw.githubusercontent.com/vladmandic/face-api/master/model';
+// Configuración
+const REPO_OWNER = 'vladmandic';
+const REPO_NAME = 'face-api';
+const REPO_PATH = 'model';
+const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REPO_PATH}`;
+const RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/master/${REPO_PATH}`;
 
-const MODEL_FILES = [
-    // Detector rápido (CPU-friendly)
-    'tiny_face_detector_model-weights_manifest.json',
-    'tiny_face_detector_model-shard1',
-
-    // SSD MobileNet v1 (más preciso, requerido para GPU)
-    'ssd_mobilenetv1_model-weights_manifest.json',
-    'ssd_mobilenetv1_model-shard1',
-    'ssd_mobilenetv1_model-shard2',
-
-    // Red de reconocimiento facial (genera descriptores 128D)
-    'face_recognition_model-weights_manifest.json',
-    'face_recognition_model-shard1',
-    'face_recognition_model-shard2',
-
-    // Landmarks faciales 68 puntos
-    'face_landmark_68_model-weights_manifest.json',
-    'face_landmark_68_model-shard1',
-
-    // Expresiones faciales
-    'face_expression_recognition_model-weights_manifest.json',
-    'face_expression_recognition_model-shard1',
-];
-
-// Destino desde argumento --dest o variable de entorno
+// Argumentos y Destino
 let destDir = path.resolve(process.cwd(), 'public/models');
 const destArgIdx = process.argv.indexOf('--dest');
 if (destArgIdx !== -1 && process.argv[destArgIdx + 1]) {
     destDir = path.resolve(process.argv[destArgIdx + 1]);
 }
 
-function downloadFile(url, destPath, retries = 3) {
+/**
+ * Helper para peticiones HTTPS GET
+ */
+function getHttps(url) {
     return new Promise((resolve, reject) => {
-        const attempt = (attemptsLeft) => {
-            const protocol = url.startsWith('https') ? https : http;
-            const file = fs.createWriteStream(destPath);
-
-            const req = protocol.get(url, (response) => {
-                // Seguir redirecciones (301, 302, 307, 308)
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    file.close();
-                    fs.unlink(destPath, () => {});
-                    return attempt(attemptsLeft);  // retry with same count (redirect is not an error)
-                }
-
-                if (response.statusCode !== 200) {
-                    file.close();
-                    fs.unlink(destPath, () => {});
-                    const err = new Error(`HTTP ${response.statusCode} para ${url}`);
-                    if (attemptsLeft > 1) {
-                        console.log(`   ↩ Reintentando (${attemptsLeft - 1} restantes)...`);
-                        setTimeout(() => attempt(attemptsLeft - 1), 2000);
-                    } else {
-                        reject(err);
-                    }
-                    return;
-                }
-
-                response.pipe(file);
-                file.on('finish', () => file.close(resolve));
-            });
-
-            req.on('error', (err) => {
-                file.close();
-                fs.unlink(destPath, () => {});
-                if (attemptsLeft > 1) {
-                    console.log(`   ↩ Error de red, reintentando (${attemptsLeft - 1} restantes)...`);
-                    setTimeout(() => attempt(attemptsLeft - 1), 2000);
-                } else {
-                    reject(err);
-                }
-            });
-
-            req.setTimeout(30000, () => {
-                req.abort();
-            });
+        // GitHub API requiere un User-Agent
+        const options = {
+            headers: { 'User-Agent': 'Node.js-Model-Downloader' }
         };
-
-        attempt(retries);
+        https.get(url, options, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                return resolve(getHttps(res.headers.location));
+            }
+            if (res.statusCode !== 200) {
+                return reject(new Error(`Status ${res.statusCode} para ${url}`));
+            }
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => resolve(data));
+        }).on('error', reject);
     });
 }
 
-async function downloadModels() {
-    console.log('\n📦 Descargando modelos de face-api.js\n');
-    console.log(`   Destino: ${destDir}`);
-    console.log(`   Fuente:  ${BASE_URL}\n`);
-
-    // Crear directorio de destino
-    fs.mkdirSync(destDir, { recursive: true });
-
-    let downloaded = 0;
-    let skipped = 0;
-    let failed = [];
-
-    for (const filename of MODEL_FILES) {
-        const destPath = path.join(destDir, filename);
-
-        // Saltar si ya existe (evita re-descargar en rebuilds)
-        if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
-            process.stdout.write(`   ⏭  ${filename} (ya existe)\n`);
-            skipped++;
-            continue;
-        }
-
-        process.stdout.write(`   ⬇  ${filename}... `);
-
-        try {
-            const url = `${BASE_URL}/${filename}`;
-            await downloadFile(url, destPath);
-            const size = fs.statSync(destPath).size;
-            const sizeMB = (size / 1024 / 1024).toFixed(2);
-            process.stdout.write(`✅ (${sizeMB} MB)\n`);
-            downloaded++;
-        } catch (err) {
-            process.stdout.write(`❌\n`);
-            console.error(`   Error: ${err.message}`);
-            failed.push(filename);
-            // Limpiar archivo parcial
-            if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
-        }
-    }
-
-    console.log('\n' + '─'.repeat(50));
-    console.log(`   Descargados:  ${downloaded}`);
-    console.log(`   Omitidos:     ${skipped}`);
-    console.log(`   Errores:      ${failed.length}`);
-
-    if (failed.length > 0) {
-        console.error('\n❌ Archivos que fallaron:');
-        failed.forEach(f => console.error(`   - ${f}`));
-        console.error('\nVerifica tu conexión a internet y reintenta.');
-        process.exit(1);
-    }
-
-    console.log('\n✅ Modelos listos en:', destDir);
+/**
+ * Descarga un archivo binario
+ */
+function downloadFile(url, destPath) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(destPath);
+        https.get(url, (res) => {
+            if (res.statusCode !== 200) {
+                reject(new Error(`Status ${res.statusCode}`));
+                return;
+            }
+            res.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                resolve();
+            });
+        }).on('error', (err) => {
+            fs.unlink(destPath, () => {}); 
+            reject(err);
+        });
+    });
 }
 
-downloadModels().catch(err => {
-    console.error('\n❌ Error descargando modelos:', err.message);
-    process.exit(1);
-});
+async function run() {
+    console.log('\n🔍 Consultando modelos disponibles en el repositorio...');
+    
+    try {
+        // 1. Obtener lista de archivos desde la API
+        const response = await getHttps(API_URL);
+        const files = JSON.parse(response)
+            .filter(item => item.type === 'file') // Solo archivos, no carpetas
+            .map(item => item.name);
+
+        console.log(`✅ Encontrados ${files.length} archivos.\n`);
+        console.log(`📂 Destino: ${destDir}\n`);
+
+        fs.mkdirSync(destDir, { recursive: true });
+
+        let downloaded = 0;
+        let skipped = 0;
+
+        // 2. Iterar y descargar
+        for (const filename of files) {
+            const destPath = path.join(destDir, filename);
+            const url = `${RAW_URL}/${filename}`;
+
+            if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
+                console.log(`  ⏭️  ${filename} (ya existe)`);
+                skipped++;
+                continue;
+            }
+
+            process.stdout.write(`  ⬇️  Descargando ${filename}... `);
+            try {
+                await downloadFile(url, destPath);
+                const size = (fs.statSync(destPath).size / 1024 / 1024).toFixed(2);
+                process.stdout.write(`✅ (${size} MB)\n`);
+                downloaded++;
+            } catch (err) {
+                process.stdout.write(`❌ Error: ${err.message}\n`);
+            }
+        }
+
+        console.log(`\n✨ Proceso finalizado. Descargados: ${downloaded}, Omitidos: ${skipped}.`);
+
+    } catch (err) {
+        console.error('\n❌ Error crítico:', err.message);
+        process.exit(1);
+    }
+}
+
+run();
